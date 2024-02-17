@@ -44,3 +44,27 @@ pushed to kafka topic "balance" with following structure:
 2. Run class Main.java
 3. Open Kafka UI in the browser (http://localhost:8090)
 4. Push some events to topics: deposit and withdraw from Kafka UI
+
+### Diagram
+
+```mermaid
+  flowchart TD;
+      depositTopic["Deposit topic"]
+      depositValidation["Validate deposit"]
+      depositMap["Map to finance"]
+      withdrawTopic["Withdraw topic"]
+      withdrawValidation["Validate withdraw"]
+      withdrawMap["Map to finance"]
+      financeTopic["Finance topic"]
+      aggregator["Aggregate"]
+      balanceTopic["Balance topic"]
+      
+      depositTopic-->depositValidation;
+      depositValidation-->depositMap;
+      withdrawTopic-->withdrawValidation;
+      withdrawValidation-->withdrawMap;
+      withdrawMap-->financeTopic;
+      depositMap-->financeTopic;
+      financeTopic-->aggregator;
+      aggregator-->balanceTopic;
+```
