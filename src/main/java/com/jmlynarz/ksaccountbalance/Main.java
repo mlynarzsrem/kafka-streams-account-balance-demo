@@ -82,7 +82,9 @@ public class Main {
         props.load(Main.class.getClassLoader().getResourceAsStream("application.properties"));
         props.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
         props.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        //props.put(PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
+        //props.put(PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
+        // Not working good on local kafka (at least as far as I tested it)
+        // https://www.confluent.io/blog/enabling-exactly-once-kafka-streams/
 
         return props;
     }
