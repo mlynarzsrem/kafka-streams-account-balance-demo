@@ -6,7 +6,6 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 public class JsonDeserializer<T> implements Deserializer<T> {
 
