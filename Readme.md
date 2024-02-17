@@ -39,9 +39,14 @@ pushed to kafka topic "balance" with following structure:
 ### Prerequisites
 - Docker
 - Java 17
-### How to run example?
+### How to run app?
+##### Using docker-compose from repo
 1. Run docker-compose from main directory
 2. Open Kafka UI in the browser (http://localhost:8090)
 3. Create topics: deposit, withdraw, finance, balance
 4. Run class Main.java
 5. Push some events to topics: deposit and withdraw from Kafka UI
+##### Other ways
+You can of course use different Kafka setup. You just have to remember to
+create all required topics before running the example. Topics will be not
+created automatically. Then you have to update "bootstrap.servers" in application properties.

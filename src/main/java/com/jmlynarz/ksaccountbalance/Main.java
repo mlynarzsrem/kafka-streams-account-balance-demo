@@ -21,30 +21,17 @@ import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Properties;
 
-import static org.apache.kafka.streams.StreamsConfig.APPLICATION_ID_CONFIG;
-import static org.apache.kafka.streams.StreamsConfig.BOOTSTRAP_SERVERS_CONFIG;
 import static org.apache.kafka.streams.StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG;
 import static org.apache.kafka.streams.StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG;
-import static org.apache.kafka.streams.StreamsConfig.REPLICATION_FACTOR_CONFIG;
-import static org.apache.kafka.streams.StreamsConfig.COMMIT_INTERVAL_MS_CONFIG;
 
 public class Main {
-    private static final String BOOTSTRAP_ADDRESS = "localhost:29092";
-    private static final String APP_NAME = "account-balance";
 
-    public static void main(String[] args) {
-        Properties props = new Properties();
-        props.put(APPLICATION_ID_CONFIG, APP_NAME);
-        props.put(BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_ADDRESS);
-        props.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        props.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        //props.put(PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
-        props.put(REPLICATION_FACTOR_CONFIG, 1);
-        props.put(COMMIT_INTERVAL_MS_CONFIG, 0);
-
+    public static void main(String[] args) throws IOException {
+        Properties props = getKafkaProperties();
         StreamsBuilder streamsBuilder = new StreamsBuilder();
         KStream<String, DepositRequest> depositStream = streamsBuilder.stream(Topics.DEPOSIT, Consumed.with(
                 Serdes.String(),
@@ -88,5 +75,15 @@ public class Main {
         kafkaStreams.start();
 
         Runtime.getRuntime().addShutdownHook(new Thread(kafkaStreams::close));
+    }
+
+    public static Properties getKafkaProperties() throws IOException {
+        Properties props = new Properties();
+        props.load(Main.class.getClassLoader().getResourceAsStream("application.properties"));
+        props.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+        props.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+        //props.put(PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
+
+        return props;
     }
 }
