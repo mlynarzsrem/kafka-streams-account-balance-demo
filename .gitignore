@@ -43,3 +43,4 @@ bin/
 .DS_Store
 
 *.log
+*.log.1

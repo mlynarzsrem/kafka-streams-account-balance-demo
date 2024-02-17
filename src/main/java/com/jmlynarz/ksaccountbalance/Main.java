@@ -10,6 +10,7 @@ import com.jmlynarz.ksaccountbalance.serde.DepositRequestSerde;
 import com.jmlynarz.ksaccountbalance.serde.FinanceOperationSerde;
 import com.jmlynarz.ksaccountbalance.serde.WithdrawRequestSerde;
 import com.jmlynarz.ksaccountbalance.utils.FinanceRequestUtils;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -24,14 +25,18 @@ import org.apache.kafka.streams.kstream.Produced;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.kafka.streams.StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG;
 import static org.apache.kafka.streams.StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG;
 
 public class Main {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException, ExecutionException {
         Properties props = getKafkaProperties();
+        createRequiredTopics(props);
+
         StreamsBuilder streamsBuilder = new StreamsBuilder();
         KStream<String, DepositRequest> depositStream = streamsBuilder.stream(Topics.DEPOSIT, Consumed.with(
                 Serdes.String(),
@@ -77,7 +82,7 @@ public class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(kafkaStreams::close));
     }
 
-    public static Properties getKafkaProperties() throws IOException {
+    private static Properties getKafkaProperties() throws IOException {
         Properties props = new Properties();
         props.load(Main.class.getClassLoader().getResourceAsStream("application.properties"));
         props.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
@@ -87,5 +92,14 @@ public class Main {
         // https://www.confluent.io/blog/enabling-exactly-once-kafka-streams/
 
         return props;
+    }
+
+    private static void createRequiredTopics(Properties props) throws ExecutionException, InterruptedException {
+        try (final AdminClient adminClient = AdminClient.create(props)) {
+            Set<String> existingTopics = adminClient.listTopics().names().get();
+            adminClient.createTopics(Topics.TOPICS.stream()
+                    .filter((nt) -> !existingTopics.contains(nt.name()))
+                    .toList()).all().get();
+        }
     }
 }
