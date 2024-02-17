@@ -40,6 +40,7 @@ pushed to kafka topic "balance" with following structure:
 - Docker
 - Java 17
 ### How to run app?
-1. Run class Main.java
-2. Open Kafka UI in the browser (http://localhost:8090)
-3. Push some events to topics: deposit and withdraw from Kafka UI
+1. Run docker-compose from main directory
+2. Run class Main.java
+3. Open Kafka UI in the browser (http://localhost:8090)
+4. Push some events to topics: deposit and withdraw from Kafka UI
