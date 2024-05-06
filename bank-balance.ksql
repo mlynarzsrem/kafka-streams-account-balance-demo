@@ -1,0 +1,9 @@
+SET 'processing.guarantee' = 'exactly_once_v2';
+CREATE STREAM deposits (accountId BIGINT KEY, amount DOUBLE) WITH (KAFKA_TOPIC = 'deposit', VALUE_FORMAT = 'JSON');
+
+CREATE STREAM withdraws (accountId BIGINT KEY, amount DOUBLE) WITH (KAFKA_TOPIC = 'withdraw', VALUE_FORMAT = 'JSON');
+
+CREATE STREAM finace_operations as select accountId, amount, 'DEPOSIT' as opType FROM deposits where amount > 0 PARTITION BY accountId EMIT CHANGES;
+INSERT INTO finace_operations select accountId, (amount * -1) as amount, 'WITHDRAW' as opType FROM withdraws  where amount > 0 PARTITION BY accountId;
+
+CREATE table balance AS SELECT accountId, COUNT(*) as operationsCount, SUM(amount) as balance FROM finace_operations GROUP BY accountId EMIT CHANGES;
