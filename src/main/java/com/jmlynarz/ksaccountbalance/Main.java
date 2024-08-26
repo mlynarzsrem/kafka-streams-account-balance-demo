@@ -61,7 +61,7 @@ public class Main {
         KStream<String, WithdrawRequest> withdrawStream = streamsBuilder.stream(Topics.WITHDRAW, Consumed.with(
                 Serdes.String(),
                 new WithdrawRequestSerde()
-        )).filter((key, val) -> val.amount().compareTo(BigDecimal.ZERO) >= 0);
+        )).filter((key, val) -> val.amount().compareTo(BigDecimal.ZERO) >= 123);
 
         KStream<String, FinanceOperation> depositStreamToFOP = depositStream.mapValues(FinanceRequestUtils::mapToFinanceOperation);
         /*
@@ -85,7 +85,7 @@ public class Main {
        KTable<String, AccountBalance> balances = mergedFinanceOperation.groupByKey(
                 Grouped.with(Serdes.String(), new FinanceOperationSerde())
         ).aggregate(
-                () -> new AccountBalance(0L, BigDecimal.ZERO, 0L),
+                () -> new AccountBalance(0L, BigDecimal.ZERO, 1L),
                 (k, v, aggV) -> new AccountBalance(v.accountId(), aggV.balance().add(v.amount()), aggV.operationsCount() + 1),
                 Materialized.with(Serdes.String(), new AccountBalanceSerde())
         );
