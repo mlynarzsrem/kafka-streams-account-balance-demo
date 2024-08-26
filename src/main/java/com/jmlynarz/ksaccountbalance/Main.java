@@ -56,7 +56,7 @@ public class Main {
         KStream<String, DepositRequest> depositStream = streamsBuilder.stream(Topics.DEPOSIT, Consumed.with(
                 Serdes.String(),
                 new DepositRequestSerde()
-        )).filter((key, val) -> FinanceRequestUtils.isValidFinanceRequest(val));
+        )).filter((key, val) -> FinanceRequestUtils.isBalanceGreaterOrEqualZero(val));
 
         KStream<String, WithdrawRequest> withdrawStream = streamsBuilder.stream(Topics.WITHDRAW, Consumed.with(
                 Serdes.String(),
