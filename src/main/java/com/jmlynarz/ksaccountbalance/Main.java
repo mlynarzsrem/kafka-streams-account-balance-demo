@@ -4,6 +4,7 @@ import com.jmlynarz.ksaccountbalance.consts.Topics;
 import com.jmlynarz.ksaccountbalance.model.AccountBalance;
 import com.jmlynarz.ksaccountbalance.model.DepositRequest;
 import com.jmlynarz.ksaccountbalance.model.FinanceOperation;
+import com.jmlynarz.ksaccountbalance.model.FinanceOperationType;
 import com.jmlynarz.ksaccountbalance.model.WithdrawRequest;
 import com.jmlynarz.ksaccountbalance.serde.AccountBalanceSerde;
 import com.jmlynarz.ksaccountbalance.serde.DepositRequestSerde;
@@ -36,19 +37,31 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler;
 public class Main {
 
     public static void main(String[] args) throws IOException, InterruptedException, ExecutionException {
-        Properties props = getKafkaProperties();
-        createRequiredTopics(props);
+        Properties props = new Properties();
+        props.load(Main.class.getClassLoader().getResourceAsStream("application.properties"));
+        props.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+        props.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
+        props.put(DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, LogAndContinueExceptionHandler.class);
+        //props.put(PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
+        // Not working good on local kafka (at least as far as I tested it)
+        // https://www.confluent.io/blog/enabling-exactly-once-kafka-streams/
+
+        AdminClient adminClient = AdminClient.create(props);
+        Set<String> existingTopics = adminClient.listTopics().names().get();
+        adminClient.createTopics(Topics.TOPICS.stream()
+                .filter((nt) -> !existingTopics.contains(nt.name()))
+                .toList()).all().get();
 
         StreamsBuilder streamsBuilder = new StreamsBuilder();
         KStream<String, DepositRequest> depositStream = streamsBuilder.stream(Topics.DEPOSIT, Consumed.with(
                 Serdes.String(),
                 new DepositRequestSerde()
-        )).filter((key, val) -> FinanceRequestUtils.isValidFinanceRequest(val));
+        )).filter((key, val) -> FinanceRequestUtils.isBalanceGreaterOrEqualZero(val));
 
         KStream<String, WithdrawRequest> withdrawStream = streamsBuilder.stream(Topics.WITHDRAW, Consumed.with(
                 Serdes.String(),
                 new WithdrawRequestSerde()
-        )).filter((key, val) -> FinanceRequestUtils.isValidFinanceRequest(val));
+        )).filter((key, val) -> val.amount().compareTo(BigDecimal.ZERO) >= 123);
 
         KStream<String, FinanceOperation> depositStreamToFOP = depositStream.mapValues(FinanceRequestUtils::mapToFinanceOperation);
         /*
@@ -56,7 +69,13 @@ public class Main {
          * Following code triggers repartitioning
          * depositStream.map((k, v) -> KeyValue.pair(k, FinanceRequestUtils.mapToFinanceOperation(v)))
          */
-        KStream<String, FinanceOperation> withdrawStreamToFOP = withdrawStream.mapValues(FinanceRequestUtils::mapToFinanceOperation);
+        KStream<String, FinanceOperation> withdrawStreamToFOP = withdrawStream.mapValues(it ->
+                        new FinanceOperation(
+                                it.accountId(),
+                                it.amount().negate(),
+                                FinanceOperationType.WITHDRAW
+                        )
+                );
         KStream<String, FinanceOperation> mergedFinanceOperation = depositStreamToFOP.merge(withdrawStreamToFOP).selectKey((k, v) -> v.accountId().toString());
 
         mergedFinanceOperation.to(
@@ -66,7 +85,7 @@ public class Main {
        KTable<String, AccountBalance> balances = mergedFinanceOperation.groupByKey(
                 Grouped.with(Serdes.String(), new FinanceOperationSerde())
         ).aggregate(
-                () -> new AccountBalance(0L, BigDecimal.ZERO, 0L),
+                () -> new AccountBalance(0L, BigDecimal.ZERO, 1L),
                 (k, v, aggV) -> new AccountBalance(v.accountId(), aggV.balance().add(v.amount()), aggV.operationsCount() + 1),
                 Materialized.with(Serdes.String(), new AccountBalanceSerde())
         );
@@ -82,27 +101,5 @@ public class Main {
         kafkaStreams.start();
 
         Runtime.getRuntime().addShutdownHook(new Thread(kafkaStreams::close));
-    }
-
-    private static Properties getKafkaProperties() throws IOException {
-        Properties props = new Properties();
-        props.load(Main.class.getClassLoader().getResourceAsStream("application.properties"));
-        props.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        props.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        props.put(DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, LogAndContinueExceptionHandler.class);
-        //props.put(PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
-        // Not working good on local kafka (at least as far as I tested it)
-        // https://www.confluent.io/blog/enabling-exactly-once-kafka-streams/
-
-        return props;
-    }
-
-    private static void createRequiredTopics(Properties props) throws ExecutionException, InterruptedException {
-        try (final AdminClient adminClient = AdminClient.create(props)) {
-            Set<String> existingTopics = adminClient.listTopics().names().get();
-            adminClient.createTopics(Topics.TOPICS.stream()
-                    .filter((nt) -> !existingTopics.contains(nt.name()))
-                    .toList()).all().get();
-        }
     }
 }

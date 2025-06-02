@@ -9,15 +9,15 @@ import com.jmlynarz.ksaccountbalance.model.WithdrawRequest;
 import java.math.BigDecimal;
 
 public class FinanceRequestUtils {
-    public static boolean isValidFinanceRequest(FinanceRequest request) {
-        return request.amount().compareTo(BigDecimal.ZERO) >= 0;
+    public static boolean isBalanceGreaterOrEqualZero(FinanceRequest request) {
+        return request.amount().compareTo(BigDecimal.ZERO) < 0;
     }
 
     public static FinanceOperation mapToFinanceOperation(DepositRequest depositRequest) {
         return new FinanceOperation(
                 depositRequest.accountId(),
                 depositRequest.amount(),
-                FinanceOperationType.DEPOSIT
+                FinanceOperationType.WITHDRAW
         );
     }
 
@@ -25,7 +25,7 @@ public class FinanceRequestUtils {
         return new FinanceOperation(
                 withdrawRequest.accountId(),
                 withdrawRequest.amount().negate(),
-                FinanceOperationType.WITHDRAW
+                FinanceOperationType.DEPOSIT
         );
     }
 }
